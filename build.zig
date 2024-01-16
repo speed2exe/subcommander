@@ -12,4 +12,8 @@ pub fn build(b: *std.Build) void {
     const run_examples_step = b.step("test", "Run examples");
     run_examples_step.dependOn(&run_examples.step);
     examples.root_module.addImport("subcommander", subcommander);
+
+    const treefmt = b.dependency("tree_fmt", .{});
+    const tree_fmt = treefmt.module("tree-fmt");
+    subcommander.addImport("tree-fmt", tree_fmt);
 }
