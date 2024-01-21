@@ -1,0 +1,11 @@
+.{
+    .name = "subcommander",
+    .version = "0.0.1",
+    .dependencies = .{
+        .tree_fmt = .{
+            .url = "https://github.com/speed2exe/tree-fmt/archive/90e77b8e09d9a6106beb65109963ab33698f7dbe.tar.gz",
+            .hash = "122009522627443a59f86e522bf9174dd74af3725d54e88966157a05ce8fe06c4e5b",
+        },
+    },
+    .paths = .{ "" },
+}
