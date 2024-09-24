@@ -2,110 +2,66 @@ const std = @import("std");
 const print = std.debug.print;
 const fmt = @import("tree-fmt").defaultFormatter();
 
-pub fn command(sub: anytype) !void {
-    const Sub = @TypeOf(sub);
-    const sub_ti = @typeInfo(Sub);
-    const args: Args(Sub) = undefined;
-
-    try fmt.format(sub, .{});
-
-    switch (sub_ti) {
-        .Struct => |s| {
-            _ = s;
-
-            // collect all flags
-            if (@hasField(Sub, "flags")) {
-                const fields = @field(sub, "flags");
-                print("flags: {any}\n", .{fields});
-            }
-
-            if (@hasField(Sub, "subs")) {
-                const fields = @field(sub, "subs");
-                print("fields: {any}\n", .{fields});
-            }
-
-            if (@hasField(Sub, "exec")) {
-                return try sub.exec(&args);
-            }
-
-            return error.Unimplemented;
-        },
-        else => return error.InvalidSubCommand,
-    }
+/// Declaration
+pub fn notImplemented(_: Input) !void {
+    return error.NotImplemented;
 }
 
-pub fn Args(comptime Sub: type) type {
-    const sub_ti = @typeInfo(Sub);
+/// represents all possible commands
+pub const Command = struct {
+    match: Match = .AnyNonEmpty,
+    flags: []const Flags = &.{},
+    subcommands: []const Command = &.{},
+    description: []const u8 = &.{},
+    execute: fn (input: Input) anyerror!void = notImplemented,
 
-    switch (sub_ti) {
-        .Struct => |s| {
-            _ = s;
-            // print("s: {any}\n", .{s});
-            // if (@hasField(Sub, "flags")) {
-            //     const flags_fields = @field(s, "flags");
-            //     var arg_fields: [flags_fields.len]std.builtin.Type.StructField = undefined;
-            //     for (flags_fields, 0..) |flag_field, i| {
-            //         arg_fields[i] = .{
-            //             .name = @field(flag_field, "long"),
-            //             .type = @field(flag_field, "type"),
-            //             .default_value = @field(flag_field, "type"),
-            //             // .is_comptime: false,
-            //             // .alignment: comptime_int,
-            //         };
-            //     }
-            // }
-        },
-        else => unreachable,
+    pub fn run(self: Command, inputs: []const []const u8) !void {
+        _ = inputs;
+        const i: Input = .{};
+        try self.execute(i);
     }
-
-    return void;
-}
-
-pub const SubArgs = struct {
-    name: []const u8,
-    flags: struct {
-        // ...
-
-    },
-    sub: ?*const SubArgs,
 };
 
-// pub const Sub = struct {
-//     flags: []const Flag,
-//     subs: []const Sub,
-//     run: fn (args: *const Args) anyerror!void,
-// };
-//
-// pub const Flag = struct {
-//     name: []const u8,
-//     short: []const u8,
-//     help: []const u8,
-//     value_type: ValueType,
-//     default_value: []const u8,
-//     required: bool = false,
-// };
+pub const Match = union(enum) {
+    Exact: []const u8,
+    Prefix: []const u8,
+    AnyNonEmpty,
 
-const ValueType = enum {
-    isize,
-    usize,
+    // Not supported yet
+    // Pattern: []const u8,
+};
 
-    i8,
-    i16,
-    i32,
-    i64,
+// supported formats(long):
+// --param=value
+// --param=
+// --param
+// short is same as long but uses single dash
+// -p=value
+// -p=
+// -p
+pub const Flags = struct {
+    short: ?[]const u8,
+    long: []const u8,
+    description: ?[]const u8,
+};
 
-    u8,
-    u16,
-    u32,
-    u64,
+// flags
+pub const MyFlag = union(enum) {
+    param1: bool,
+    param2: i8,
+};
 
-    f32,
-    f64,
+/// Parsed input
+pub const Input = struct {
+    commands: []const InputCommand = &.{},
+};
 
-    bool,
-    string,
+pub const InputCommand = struct {
+    name: []const u8,
+    flags: []const InputFlag = &.{},
+};
 
-    path,
-    file,
-    dir,
+pub const InputFlag = struct {
+    name: []const u8,
+    value: ?[]const u8,
 };

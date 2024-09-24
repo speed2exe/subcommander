@@ -2,24 +2,27 @@ const std = @import("std");
 const subcommander = @import("subcommander");
 
 test {
-    try subcommander.command(.{
-        .flags = &.{
-            .{
-                .short = "h",
-                .long = "help",
-                .description = "Prints help information",
-                .type = bool,
-                .default_value = false,
-            },
-        },
-        .subs = &.{
-            .{},
-        },
-        .exec = begin,
-    });
+    const mycommands: subcommander.Command = .{};
+    try mycommands.run(&.{"hello"});
+
+    // try subcommander.command(.{
+    //     .flags = &.{
+    //         .{
+    //             .short = "h",
+    //             .long = "help",
+    //             .description = "Prints help information",
+    //             .type = @typeInfo(bool),
+    //             .default = @constCast(&false),
+    //         },
+    //     },
+    //     .subs = &.{
+    //         .{},
+    //     },
+    //     .exec = begin,
+    // });
 }
 
-fn begin(args: anytype) !void {
-    _ = args;
-    std.debug.print("begin\n", .{});
+fn begin(input: subcommander.Input) !void {
+    _ = input;
+    std.debug.print("Hello, world!\n", .{});
 }
