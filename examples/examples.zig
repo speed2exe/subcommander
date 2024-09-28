@@ -7,13 +7,14 @@ test "match 1 command" {
         .execute = hello,
     };
     try mycommands.run(&.{"hello"});
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"world"}));
 }
 
-test "did not match command " {
+test "no execute fn" {
     const mycommands: subcommander.Command = .{
         .match = "hello",
     };
-    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"world"}));
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"hello"}));
 }
 
 test "match 2 and execute" {
@@ -40,6 +41,8 @@ test "match split path and execute" {
         } },
     };
     try mycommands.run(&.{ "hello", "foo" });
+    try mycommands.run(&.{ "hello", "world" });
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{ "hello", "baz" }));
 }
 
 fn helloWorld(input: *const subcommander.InputCommand) void {
