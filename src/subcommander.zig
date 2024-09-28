@@ -40,7 +40,7 @@ pub const Command = struct {
         var modified_args = remain_args;
         const next_arg = modified_args[0];
         if (self.match) |match| {
-            if (memEqlSentinelStr(match, next_arg)) {
+            if (memEqlSentinel(match, next_arg)) {
                 current.name = next_arg;
                 modified_args = modified_args[1..];
             }
@@ -57,7 +57,7 @@ pub const Command = struct {
     ) !void {
         inline for (self.subcommands) |subcommand| {
             var child: InputCommand = .{ .name = undefined };
-            current.prev = &child;
+            current.next = &child;
             const done = blk: {
                 subcommand.run_rec_command(
                     remain_args,
@@ -79,7 +79,7 @@ pub const Command = struct {
         remain_args: []const [*:0]const u8,
         parent: *InputCommand,
         current: *InputCommand,
-    ) !void {
+    ) anyerror!void { // TODO: remove anyerror
         if (remain_args.len == 0) return self.executeCmd(parent);
 
         var modified_args = remain_args;
@@ -96,7 +96,7 @@ pub const Command = struct {
             // get input flag name and value
             var input_flag_name: []const u8 = undefined;
             var value: ?[*:0]const u8 = undefined;
-            const eql_idx = idxOfPosSentinelStr(next_arg, '=');
+            const eql_idx = idxOfPosSentinel(next_arg, '=');
             if (eql_idx) |idx| {
                 input_flag_name = next_arg[0..idx];
                 value = next_arg[idx + 1 ..];
@@ -106,19 +106,22 @@ pub const Command = struct {
             }
 
             // find flag
-            for (self.flags) |flag| {
-                const target_name = if (is_long) flag.long else flag.short;
-                if (memEqlSentinelStr(target_name, input_flag_name)) {
-                    current.flags = .{
-                        .name = flag.long,
-                        .value = value,
-                        .prev = current.flags,
-                    };
-                    return self.run_rec_command(
-                        modified_args[1..],
-                        parent,
-                        current,
-                    );
+            inline for (self.flags) |flag| {
+                const flag_name_opt = if (is_long) flag.long else flag.short;
+                if (flag_name_opt) |flag_name| {
+                    if (memEqlSentinelVsSlice(flag_name, input_flag_name)) {
+                        var input_flag: InputFlag = .{
+                            .name = flag_name,
+                            .value = value,
+                            .prev = current.flags,
+                        };
+                        current.flags = &input_flag;
+                        return self.run_rec_command(
+                            modified_args[1..],
+                            parent,
+                            current,
+                        );
+                    }
                 }
             }
 
@@ -152,16 +155,16 @@ pub const Flags = struct {
 pub const InputCommand = struct {
     name: [*:0]const u8,
     flags: ?*InputFlag = null,
-    prev: ?*InputCommand = null,
+    next: ?*InputCommand = null,
 };
 
 pub const InputFlag = struct {
     name: [*:0]const u8, // long name
     value: ?[*:0]const u8 = null,
-    next: ?*InputFlag = null,
+    prev: ?*InputFlag = null,
 };
 
-fn memEqlSentinelStr(a: [*:0]const u8, b: [*:0]const u8) bool {
+fn memEqlSentinel(a: [*:0]const u8, b: [*:0]const u8) bool {
     var i: usize = 0;
     while (true) : (i += 1) {
         const a_val = a[i];
@@ -171,7 +174,16 @@ fn memEqlSentinelStr(a: [*:0]const u8, b: [*:0]const u8) bool {
     }
 }
 
-fn idxOfPosSentinelStr(haystack: [*:0]const u8, needle: u8) ?usize {
+fn memEqlSentinelVsSlice(a: [*:0]const u8, b: []const u8) bool {
+    for (b, 0..) |b_val, i| {
+        const a_val = a[i];
+        if (a_val != b_val) return false;
+        if (a_val == 0) return false;
+    }
+    return a[b.len] == 0;
+}
+
+fn idxOfPosSentinel(haystack: [*:0]const u8, needle: u8) ?usize {
     var i: usize = 0;
     while (true) : (i += 1) {
         const val = haystack[i];

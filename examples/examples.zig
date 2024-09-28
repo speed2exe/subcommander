@@ -45,14 +45,28 @@ test "match split path and execute" {
     try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{ "hello", "baz" }));
 }
 
+test "hello world --param" {
+    const mycommands: subcommander.Command = .{
+        .match = "hello",
+        .subcommands = &.{.{
+            .match = "world",
+            .execute = helloWorld,
+        }},
+        .flags = &.{.{
+            .long = "param",
+        }},
+    };
+    try mycommands.run(&.{ "hello", "--param", "world" });
+}
+
 fn helloWorld(input: *const subcommander.InputCommand) void {
     std.testing.expectEqualSlices(u8, "hello", std.mem.span(input.name)) catch unreachable;
-    std.testing.expectEqualSlices(u8, "world", std.mem.span(input.prev.?.name)) catch unreachable;
+    std.testing.expectEqualSlices(u8, "world", std.mem.span(input.next.?.name)) catch unreachable;
 }
 
 fn helloFoo(input: *const subcommander.InputCommand) void {
     std.testing.expectEqualSlices(u8, "hello", std.mem.span(input.name)) catch unreachable;
-    std.testing.expectEqualSlices(u8, "foo", std.mem.span(input.prev.?.name)) catch unreachable;
+    std.testing.expectEqualSlices(u8, "foo", std.mem.span(input.next.?.name)) catch unreachable;
 }
 
 fn hello(input: *const subcommander.InputCommand) void {
