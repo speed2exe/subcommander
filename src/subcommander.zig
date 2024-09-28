@@ -20,7 +20,7 @@ pub const Command = struct {
         self: Command,
         args: []const [*:0]const u8,
     ) !void {
-        var input: InputCommand = .{};
+        var input: InputCommand = .{ .name = undefined };
         try self.run_rec(
             // allocator,
             args,
@@ -40,8 +40,10 @@ pub const Command = struct {
         var modified_args = remain_args;
 
         // match command
+        const next_arg = modified_args[0];
         if (self.match) |match| {
-            if (memEqlSentinelStr(match, modified_args[0])) {
+            if (memEqlSentinelStr(match, next_arg)) {
+                current.name = next_arg;
                 modified_args = modified_args[1..];
             }
         }
@@ -55,18 +57,21 @@ pub const Command = struct {
             return self.execute(current);
         }
 
-        for (self.subcommands) |subcommand| {
-            var child: InputCommand = .{};
+        inline for (self.subcommands) |subcommand| {
+            var child: InputCommand = .{ .name = undefined };
             current.next = &child;
-            try subcommand.run_rec(
-                remain_args,
-                parent,
-                &child,
-            ) catch |err| {
-                std.log.debug("subcommand rec error: {}\n", .{err});
-                continue;
+            const done = blk: {
+                subcommand.run_rec(
+                    remain_args,
+                    parent,
+                    &child,
+                ) catch |err| {
+                    std.log.debug("subcommand rec error: {}\n", .{err});
+                    break :blk false;
+                };
+                break :blk true;
             };
-            return;
+            if (done) return;
         }
         return error.CommandNotFound;
     }
@@ -81,9 +86,9 @@ pub const Command = struct {
 // -p=
 // -p
 pub const Flags = struct {
-    short: ?[]const u8 = null,
-    long: []const u8,
-    description: []const u8 = "",
+    short: ?[*:0]const u8 = null,
+    long: [*:0]const u8,
+    description: [*:0]const u8 = "",
 };
 
 // flags
@@ -94,14 +99,14 @@ pub const MyFlag = union(enum) {
 
 /// Parsed input
 pub const InputCommand = struct {
-    name: ?[]const u8 = null,
+    name: [*:0]const u8,
     flags: ?*InputFlag = null,
     next: ?*InputCommand = null,
 };
 
 pub const InputFlag = struct {
-    name: []const u8,
-    value: ?[]const u8 = null,
+    name: [*:0]const u8,
+    value: ?[*:0]const u8 = null,
     next: ?*InputFlag = null,
 };
 
