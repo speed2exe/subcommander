@@ -3,7 +3,7 @@ const subcommander = @import("subcommander");
 
 test {
     const mycommands: subcommander.Command = .{};
-    try mycommands.run(&.{"hello"});
+    try mycommands.run(&.{ "hello", "you" });
 
     // try subcommander.command(.{
     //     .flags = &.{
