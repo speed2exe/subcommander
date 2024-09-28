@@ -1,28 +1,16 @@
 const std = @import("std");
 const subcommander = @import("subcommander");
 
-test {
-    const mycommands: subcommander.Command = .{};
-    try mycommands.run(&.{ "hello", "you" });
-
-    // try subcommander.command(.{
-    //     .flags = &.{
-    //         .{
-    //             .short = "h",
-    //             .long = "help",
-    //             .description = "Prints help information",
-    //             .type = @typeInfo(bool),
-    //             .default = @constCast(&false),
-    //         },
-    //     },
-    //     .subs = &.{
-    //         .{},
-    //     },
-    //     .exec = begin,
-    // });
+test "match 1 command" {
+    const mycommands: subcommander.Command = .{
+        .match = "hello",
+    };
+    try mycommands.run(&.{"hello"});
 }
 
-fn begin(input: subcommander.Input) !void {
-    _ = input;
-    std.debug.print("Hello, world!\n", .{});
+test "did not match command " {
+    const mycommands: subcommander.Command = .{
+        .match = "hello",
+    };
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"world"}));
 }

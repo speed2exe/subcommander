@@ -3,18 +3,18 @@ const print = std.debug.print;
 const fmt = @import("tree-fmt").defaultFormatter();
 
 /// Declaration
-pub fn noOp(_: *const InputCommand) void {
-    std.log.debug("noOp\n", .{});
+pub fn notImplemented(_: *const InputCommand) void {
+    std.log.debug("this command is not implemented\n", .{});
     return;
 }
 
 /// represents all possible commands
 pub const Command = struct {
-    match: ?[]const u8 = null,
+    match: ?[*:0]const u8 = null,
     flags: []const Flags = &.{},
     subcommands: []const Command = &.{},
     description: []const u8 = &.{},
-    execute: fn (input: *const InputCommand) void = noOp,
+    execute: fn (input: *const InputCommand) void = notImplemented,
 
     pub fn run(
         self: Command,
@@ -41,7 +41,7 @@ pub const Command = struct {
 
         // match command
         if (self.match) |match| {
-            if (std.mem.eql(u8, match, modified_args[0])) {
+            if (memEqlSentinelStr(match, modified_args[0])) {
                 modified_args = modified_args[1..];
             }
         }
@@ -68,7 +68,7 @@ pub const Command = struct {
             };
             return;
         }
-        std.log.err("did not match any commands\n", .{});
+        return error.CommandNotFound;
     }
 };
 
@@ -104,3 +104,13 @@ pub const InputFlag = struct {
     value: ?[]const u8 = null,
     next: ?*InputFlag = null,
 };
+
+fn memEqlSentinelStr(a: [*:0]const u8, b: [*:0]const u8) bool {
+    var i: usize = 0;
+    while (true) : (i += 1) {
+        const a_val = a[i];
+        const b_val = b[i];
+        if (a_val != b_val) return false;
+        if (a_val == 0) return true;
+    }
+}
