@@ -48,7 +48,7 @@ test "hello world/foo" {
 fn helloWorldParam(input: *const subcommander.InputCommand) void {
     std.testing.expectEqualSlices(u8, "hello", std.mem.span(input.name)) catch unreachable;
     std.testing.expectEqualSlices(u8, "world", std.mem.span(input.next.?.name)) catch unreachable;
-    const param = input.flags.?;
+    const param = input.flag.?;
     std.testing.expectEqualSlices(u8, "param", std.mem.span(param.name)) catch unreachable;
     std.testing.expectEqual(null, param.value) catch unreachable;
     std.testing.expectEqual(null, param.prev) catch unreachable;
@@ -56,13 +56,55 @@ fn helloWorldParam(input: *const subcommander.InputCommand) void {
 fn helloFooParam(input: *const subcommander.InputCommand) void {
     std.testing.expectEqualSlices(u8, "hello", std.mem.span(input.name)) catch unreachable;
     std.testing.expectEqualSlices(u8, "foo", std.mem.span(input.next.?.name)) catch unreachable;
-    const b_param = input.next.?.flags.?;
+    const b_param = input.next.?.flag.?;
     std.testing.expectEqualSlices(u8, "b_param", std.mem.span(b_param.name)) catch unreachable;
     std.testing.expectEqualSlices(u8, "goodbye", std.mem.span(b_param.value.?)) catch unreachable;
     const a_param = b_param.prev.?;
     std.testing.expectEqualSlices(u8, "a_param", std.mem.span(a_param.name)) catch unreachable;
     std.testing.expectEqualSlices(u8, "", std.mem.span(a_param.value.?)) catch unreachable;
     std.testing.expectEqual(null, a_param.prev) catch unreachable;
+
+    {
+        // Using flag iterator for current input
+        var flag_iter = input.flagIter();
+        while (flag_iter.next()) |flag| {
+            if (std.mem.eql(u8, "a_param", std.mem.span(flag.name))) {
+                std.testing.expectEqualSlices(u8, "", std.mem.span(flag.value.?)) catch unreachable;
+            } else if (std.mem.eql(u8, "b_param", std.mem.span(flag.name))) {
+                std.testing.expectEqualSlices(u8, "goodbye", std.mem.span(flag.value.?)) catch unreachable;
+            } else {
+                std.testing.expect(false) catch unreachable;
+            }
+        }
+    }
+}
+fn helloFooBar(input: *const subcommander.InputCommand) void {
+    std.testing.expectEqualSlices(u8, "hello", std.mem.span(input.name)) catch unreachable;
+    std.testing.expectEqualSlices(u8, "foo", std.mem.span(input.next.?.name)) catch unreachable;
+    std.testing.expectEqualSlices(u8, "bar", std.mem.span(input.next.?.next.?.name)) catch unreachable;
+    {
+        // iterate recursively through flags
+        var param: ?[*:0]const u8 = undefined;
+        var a_param: ?[*:0]const u8 = undefined;
+        var b_param: ?[*:0]const u8 = undefined;
+        var c_param: ?[*:0]const u8 = undefined;
+        var all_flags_iter = input.flagIterRec();
+        while (all_flags_iter.next()) |flag| {
+            if (std.mem.eql(u8, "param", std.mem.span(flag.name))) {
+                param = flag.value;
+            } else if (std.mem.eql(u8, "a_param", std.mem.span(flag.name))) {
+                a_param = flag.value;
+            } else if (std.mem.eql(u8, "b_param", std.mem.span(flag.name))) {
+                b_param = flag.value;
+            } else if (std.mem.eql(u8, "c_param", std.mem.span(flag.name))) {
+                c_param = flag.value;
+            } else unreachable;
+        }
+        std.testing.expectEqualSlices(u8, "123", std.mem.span(param.?)) catch unreachable;
+        std.testing.expectEqualSlices(u8, "456", std.mem.span(a_param.?)) catch unreachable;
+        std.testing.expectEqualSlices(u8, "789", std.mem.span(b_param.?)) catch unreachable;
+        std.testing.expectEqualSlices(u8, "999", std.mem.span(c_param.?)) catch unreachable;
+    }
 }
 test "hello world --param" {
     const mycommands: subcommander.Command = .{
@@ -85,6 +127,18 @@ test "hello world --param" {
                         .long = "b_param",
                     },
                 },
+                .subcommands = &.{
+                    .{
+                        .match = "bar",
+                        .execute = helloFooBar,
+                        .flags = &.{
+                            .{
+                                .short = "c",
+                                .long = "c_param",
+                            },
+                        },
+                    },
+                },
             },
         },
         .flags = &.{.{
@@ -95,4 +149,5 @@ test "hello world --param" {
     try mycommands.run(&.{ "hello", "--param", "world" });
     try mycommands.run(&.{ "hello", "-p", "world" });
     try mycommands.run(&.{ "hello", "foo", "-a=", "-b=goodbye" });
+    try mycommands.run(&.{ "hello", "-p=123", "foo", "-a=456", "-b=789", "bar", "-c=999" });
 }

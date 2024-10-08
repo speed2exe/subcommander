@@ -30,10 +30,10 @@ pub const Command = struct {
     fn run_rec_command(
         self: Command,
         remain_args: []const [*:0]const u8,
-        parent: *InputCommand,
+        root: *InputCommand,
         current: *InputCommand,
     ) !void {
-        if (remain_args.len == 0) return self.executeCmd(parent);
+        if (remain_args.len == 0) return self.executeCmd(root);
 
         var modified_args = remain_args;
         const next_arg = modified_args[0];
@@ -44,13 +44,13 @@ pub const Command = struct {
             }
         }
 
-        return self.run_rec_flags(modified_args, parent, current);
+        return self.run_rec_flags(modified_args, root, current);
     }
 
     fn run_rec_sub_command(
         self: Command,
         remain_args: []const [*:0]const u8,
-        parent: *InputCommand,
+        root: *InputCommand,
         current: *InputCommand,
     ) !void {
         inline for (self.subcommands) |subcommand| {
@@ -59,7 +59,7 @@ pub const Command = struct {
             const done = blk: {
                 subcommand.run_rec_command(
                     remain_args,
-                    parent,
+                    root,
                     &child,
                 ) catch |err| {
                     std.log.debug("subcommand rec error: {any}\n", .{err});
@@ -75,10 +75,10 @@ pub const Command = struct {
     fn run_rec_flags(
         self: Command,
         remain_args: []const [*:0]const u8,
-        parent: *InputCommand,
+        root: *InputCommand,
         current: *InputCommand,
     ) anyerror!void { // TODO: remove anyerror
-        if (remain_args.len == 0) return self.executeCmd(parent);
+        if (remain_args.len == 0) return self.executeCmd(root);
 
         var modified_args = remain_args;
 
@@ -111,12 +111,12 @@ pub const Command = struct {
                         var input_flag: InputFlag = .{
                             .name = flag.long,
                             .value = value,
-                            .prev = current.flags,
+                            .prev = current.flag,
                         };
-                        current.flags = &input_flag;
+                        current.flag = &input_flag;
                         return self.run_rec_command(
                             modified_args[1..],
-                            parent,
+                            root,
                             current,
                         );
                     }
@@ -127,7 +127,7 @@ pub const Command = struct {
             return error.FlagNotFound;
         }
 
-        return self.run_rec_sub_command(remain_args, parent, current);
+        return self.run_rec_sub_command(remain_args, root, current);
     }
 };
 
@@ -148,14 +148,50 @@ pub const Flags = struct {
 /// Parsed input
 pub const InputCommand = struct {
     name: [*:0]const u8,
-    flags: ?*InputFlag = null,
+    flag: ?*InputFlag = null,
     next: ?*InputCommand = null,
+
+    /// Iterate over flags for current command
+    pub fn flagIter(self: *const InputCommand) InputFlagIterator {
+        return .{ .flag = self.flag };
+    }
+
+    /// Recursively Iterate over flags for current command and next commands
+    pub fn flagIterRec(self: *const InputCommand) InputFlagIteratorRecursive {
+        return .{ .command = self, .flag = self.flag };
+    }
 };
 
 pub const InputFlag = struct {
     name: [*:0]const u8, // long name
     value: ?[*:0]const u8 = null,
     prev: ?*InputFlag = null,
+};
+
+pub const InputFlagIterator = struct {
+    flag: ?*const InputFlag,
+
+    pub fn next(self: *InputFlagIterator) ?*const InputFlag {
+        const current = self.flag orelse return null;
+        self.flag = current.prev;
+        return current;
+    }
+};
+
+pub const InputFlagIteratorRecursive = struct {
+    command: *const InputCommand,
+    flag: ?*const InputFlag,
+
+    pub fn next(self: *InputFlagIteratorRecursive) ?*const InputFlag {
+        const current = self.flag orelse {
+            const next_command = self.command.next orelse return null;
+            self.command = next_command;
+            self.flag = next_command.flag;
+            return self.next();
+        };
+        self.flag = current.prev;
+        return current;
+    }
 };
 
 fn memEqlSentinel(a: [*:0]const u8, b: [*:0]const u8) bool {
