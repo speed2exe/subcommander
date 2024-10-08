@@ -17,7 +17,7 @@ test "no execute fn" {
     const mycommands: subcommander.Command = .{
         .match = "hello",
     };
-    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"hello"}));
+    try std.testing.expectError(error.ExecuteFnNotFound, mycommands.run(&.{"hello"}));
 }
 
 fn helloWorld(input: *const subcommander.InputCommand) void {
@@ -41,7 +41,7 @@ test "hello world/foo" {
     };
     try mycommands.run(&.{ "hello", "foo" });
     try mycommands.run(&.{ "hello", "world" });
-    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"hello"}));
+    try std.testing.expectError(error.ExecuteFnNotFound, mycommands.run(&.{"hello"}));
     try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{ "hello", "baz" }));
 }
 
@@ -106,7 +106,7 @@ fn helloFooBar(input: *const subcommander.InputCommand) void {
         std.testing.expectEqualSlices(u8, "999", std.mem.span(c_param.?)) catch unreachable;
     }
 }
-test "hello world --param" {
+test "hello world foo bar" {
     const mycommands: subcommander.Command = .{
         .match = "hello",
         .subcommands = &.{
@@ -150,4 +150,5 @@ test "hello world --param" {
     try mycommands.run(&.{ "hello", "-p", "world" });
     try mycommands.run(&.{ "hello", "foo", "-a=", "-b=goodbye" });
     try mycommands.run(&.{ "hello", "-p=123", "foo", "-a=456", "-b=789", "bar", "-c=999" });
+    try std.testing.expectError(error.FlagNotFound, mycommands.run(&.{ "hello", "-x=123" }));
 }

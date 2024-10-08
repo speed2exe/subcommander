@@ -2,6 +2,12 @@ const std = @import("std");
 const print = std.debug.print;
 const fmt = @import("tree-fmt").defaultFormatter();
 
+pub const RunError = error{
+    CommandNotFound,
+    FlagNotFound,
+    ExecuteFnNotFound,
+};
+
 /// represents all possible commands
 pub const Command = struct {
     match: ?[*:0]const u8 = null,
@@ -10,10 +16,7 @@ pub const Command = struct {
     description: []const u8 = &.{},
     execute: ?fn (input: *const InputCommand) void = null,
 
-    pub fn run(
-        self: Command,
-        args: []const [*:0]const u8,
-    ) !void {
+    pub fn run(self: Command, args: []const [*:0]const u8) RunError!void {
         var input: InputCommand = .{ .name = undefined };
         try self.run_rec_command(
             args,
@@ -22,8 +25,12 @@ pub const Command = struct {
         );
     }
 
-    fn executeCmd(cmd: Command, input: *const InputCommand) !void {
-        const exeFn = cmd.execute orelse return error.CommandNotFound;
+    fn executeCmd(cmd: Command, input: *const InputCommand) RunError!void {
+        const exeFn = cmd.execute orelse {
+            std.log.warn("execute function not found for command: {s}\n", .{input.name});
+            return error.ExecuteFnNotFound;
+        };
+
         exeFn(input);
     }
 
@@ -32,7 +39,7 @@ pub const Command = struct {
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
         current: *InputCommand,
-    ) !void {
+    ) RunError!void {
         if (remain_args.len == 0) return self.executeCmd(root);
 
         var modified_args = remain_args;
@@ -52,7 +59,7 @@ pub const Command = struct {
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
         current: *InputCommand,
-    ) !void {
+    ) RunError!void {
         inline for (self.subcommands) |subcommand| {
             var child: InputCommand = .{ .name = undefined };
             current.next = &child;
@@ -77,7 +84,7 @@ pub const Command = struct {
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
         current: *InputCommand,
-    ) anyerror!void { // TODO: remove anyerror
+    ) RunError!void { // TODO: remove anyerror
         if (remain_args.len == 0) return self.executeCmd(root);
 
         var modified_args = remain_args;
@@ -123,7 +130,7 @@ pub const Command = struct {
                 }
             }
 
-            std.log.err("flag not found: {s}\n", .{input_flag_name});
+            std.log.warn("flag not found: {s}\n", .{input_flag_name});
             return error.FlagNotFound;
         }
 
