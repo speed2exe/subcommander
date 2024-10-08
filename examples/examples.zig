@@ -11,13 +11,19 @@ test "match 1 command" {
     };
     try mycommands.run(&.{"hello"});
     try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"world"}));
+
+    // exhaustively test all possible error cases
+    if (mycommands.run(&.{"world"})) unreachable else |run_error| switch (run_error) {
+        error.CommandNotFound => {},
+        error.FlagNotFound => unreachable,
+    }
 }
 
 test "no execute fn" {
     const mycommands: subcommander.Command = .{
         .match = "hello",
     };
-    try std.testing.expectError(error.ExecuteFnNotFound, mycommands.run(&.{"hello"}));
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"hello"}));
 }
 
 fn helloWorld(input: *const subcommander.InputCommand) void {
@@ -41,7 +47,7 @@ test "hello world/foo" {
     };
     try mycommands.run(&.{ "hello", "foo" });
     try mycommands.run(&.{ "hello", "world" });
-    try std.testing.expectError(error.ExecuteFnNotFound, mycommands.run(&.{"hello"}));
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{"hello"}));
     try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{ "hello", "baz" }));
 }
 
@@ -138,6 +144,7 @@ test "hello world foo bar" {
                             },
                         },
                     },
+                    .{ .match = "baz" },
                 },
             },
         },
@@ -151,4 +158,5 @@ test "hello world foo bar" {
     try mycommands.run(&.{ "hello", "foo", "-a=", "-b=goodbye" });
     try mycommands.run(&.{ "hello", "-p=123", "foo", "-a=456", "-b=789", "bar", "-c=999" });
     try std.testing.expectError(error.FlagNotFound, mycommands.run(&.{ "hello", "-x=123" }));
+    try std.testing.expectError(error.CommandNotFound, mycommands.run(&.{ "hello", "foo", "baz" }));
 }
