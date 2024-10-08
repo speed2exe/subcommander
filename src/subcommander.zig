@@ -16,7 +16,6 @@ pub const Command = struct {
     ) !void {
         var input: InputCommand = .{ .name = undefined };
         try self.run_rec_command(
-            // allocator,
             args,
             &input,
             &input,
@@ -24,7 +23,6 @@ pub const Command = struct {
     }
 
     fn executeCmd(cmd: Command, input: *const InputCommand) !void {
-        // TODO: pretty print hints
         const exeFn = cmd.execute orelse return error.CommandNotFound;
         exeFn(input);
     }
@@ -111,7 +109,7 @@ pub const Command = struct {
                 if (flag_name_opt) |flag_name| {
                     if (memEqlSentinelVsSlice(flag_name, input_flag_name)) {
                         var input_flag: InputFlag = .{
-                            .name = flag_name,
+                            .name = flag.long,
                             .value = value,
                             .prev = current.flags,
                         };
@@ -130,10 +128,6 @@ pub const Command = struct {
         }
 
         return self.run_rec_sub_command(remain_args, parent, current);
-    }
-
-    pub fn help() !void {
-        return error.NotImplemented;
     }
 };
 
