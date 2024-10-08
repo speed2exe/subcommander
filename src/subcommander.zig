@@ -18,14 +18,14 @@ pub const Command = struct {
 
     pub fn run(self: Command, args: []const [*:0]const u8) RunError!void {
         var input: InputCommand = .{ .name = undefined };
-        try self.run_rec_command(
+        try self.runCommandRecursive(
             args,
             &input,
             &input,
         );
     }
 
-    fn executeCmd(cmd: Command, input: *const InputCommand) RunError!void {
+    fn executeCommand(cmd: Command, input: *const InputCommand) RunError!void {
         const exeFn = cmd.execute orelse {
             std.log.warn("execute function not found for command: {s}\n", .{input.name});
             return error.ExecuteFnNotFound;
@@ -34,13 +34,13 @@ pub const Command = struct {
         exeFn(input);
     }
 
-    fn run_rec_command(
+    fn runCommandRecursive(
         self: Command,
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
         current: *InputCommand,
     ) RunError!void {
-        if (remain_args.len == 0) return self.executeCmd(root);
+        if (remain_args.len == 0) return self.executeCommand(root);
 
         var modified_args = remain_args;
         const next_arg = modified_args[0];
@@ -51,10 +51,10 @@ pub const Command = struct {
             }
         }
 
-        return self.run_rec_flags(modified_args, root, current);
+        return self.runFlagsRecursive(modified_args, root, current);
     }
 
-    fn run_rec_sub_command(
+    fn runSubCommandRecursive(
         self: Command,
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
@@ -64,7 +64,7 @@ pub const Command = struct {
             var child: InputCommand = .{ .name = undefined };
             current.next = &child;
             const done = blk: {
-                subcommand.run_rec_command(
+                subcommand.runCommandRecursive(
                     remain_args,
                     root,
                     &child,
@@ -79,13 +79,13 @@ pub const Command = struct {
         return error.CommandNotFound;
     }
 
-    fn run_rec_flags(
+    fn runFlagsRecursive(
         self: Command,
         remain_args: []const [*:0]const u8,
         root: *InputCommand,
         current: *InputCommand,
     ) RunError!void { // TODO: remove anyerror
-        if (remain_args.len == 0) return self.executeCmd(root);
+        if (remain_args.len == 0) return self.executeCommand(root);
 
         var modified_args = remain_args;
 
@@ -121,7 +121,7 @@ pub const Command = struct {
                             .prev = current.flag,
                         };
                         current.flag = &input_flag;
-                        return self.run_rec_command(
+                        return self.runCommandRecursive(
                             modified_args[1..],
                             root,
                             current,
@@ -134,7 +134,7 @@ pub const Command = struct {
             return error.FlagNotFound;
         }
 
-        return self.run_rec_sub_command(remain_args, root, current);
+        return self.runSubCommandRecursive(remain_args, root, current);
     }
 };
 
