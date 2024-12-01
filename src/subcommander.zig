@@ -1,6 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const fmt = @import("tree-fmt").defaultFormatter();
+const log = std.log.scoped(.subcommander);
 
 pub const RunError = error{
     CommandNotFound,
@@ -9,7 +10,11 @@ pub const RunError = error{
 
 /// represents all possible commands
 pub const Command = struct {
+    /// by default, this is null,
+    /// which means it will not consume any arguments
+    /// flags and subcommands will be parsed
     match: ?[*:0]const u8 = null,
+
     flags: []const Flags = &.{},
     subcommands: []const Command = &.{},
     description: []const u8 = &.{},
@@ -26,7 +31,7 @@ pub const Command = struct {
 
     fn executeCommand(cmd: Command, input: *const InputCommand) RunError!void {
         const exeFn = cmd.execute orelse {
-            std.log.warn("execute function not found for command:", .{});
+            log.warn("execute function not found for command:", .{});
             input.debugPrintCommandRecursive();
             return error.CommandNotFound;
         };
@@ -69,8 +74,10 @@ pub const Command = struct {
                     root,
                     &child,
                 ) catch |err| {
-                    std.log.debug("subcommand rec error: {any}\n", .{err});
-                    break :blk false;
+                    switch (err) {
+                        error.CommandNotFound => break :blk false,
+                        error.FlagNotFound => return err,
+                    }
                 };
                 break :blk true;
             };
@@ -154,7 +161,7 @@ pub const Flags = struct {
 
 /// Parsed input
 pub const InputCommand = struct {
-    name: [*:0]const u8,
+    name: ?[*:0]const u8 = null,
     flag: ?*InputFlag = null,
     next: ?*InputCommand = null,
 
@@ -169,7 +176,7 @@ pub const InputCommand = struct {
     }
 
     fn debugPrintCommandRecursive(self: *const InputCommand) void {
-        std.debug.print("{s} ", .{self.name});
+        std.debug.print("{?s} ", .{self.name});
         const next = self.next orelse return std.debug.print("\n", .{});
         std.debug.print("-> ", .{});
         next.debugPrintCommandRecursive();
@@ -237,3 +244,4 @@ fn idxOfPosSentinel(haystack: [*:0]const u8, needle: u8) ?usize {
 }
 
 // TODO: suggestion, help
+// print command tree
