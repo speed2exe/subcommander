@@ -190,3 +190,18 @@ test "still able to parse flags" {
     };
     _ = try mycommands.run(&.{ "--param=3", "hello" });
 }
+
+fn assertParamEqual3(input: *const subcommander.InputCommand) void {
+    const param = input.flag.?;
+    std.testing.expectEqualSlices(u8, "param", std.mem.span(param.name)) catch unreachable;
+    std.testing.expectEqualSlices(u8, "3", std.mem.span(param.value.?)) catch unreachable;
+}
+test "can execute without initial match" {
+    const mycommands: subcommander.Command = .{
+        .execute = assertParamEqual3,
+        .flags = &.{
+            .{ .short = "p", .long = "param" },
+        },
+    };
+    _ = try mycommands.run(&.{"--param=3"});
+}
