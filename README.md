@@ -8,7 +8,7 @@
 ## Add as dependency to your Zig project
 
 - `build.zig.zon`
-```zon
+```
 .{
     .dependencies = .{
         .subcommander = .{
@@ -31,7 +31,7 @@
     //...
 ```
 
-## Compatability
+## Compatibility
 - not compatible with windows (yet)
 
 ## Usage
