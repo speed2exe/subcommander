@@ -1,7 +1,5 @@
 const std = @import("std");
-const print = std.debug.print;
 const fmt = @import("tree-fmt").defaultFormatter();
-const log = std.log.scoped(.subcommander);
 
 pub const RunError = error{
     CommandNotFound,
@@ -30,12 +28,8 @@ pub const Command = struct {
     }
 
     fn executeCommand(cmd: Command, input: *const InputCommand) RunError!void {
-        const exeFn = cmd.execute orelse {
-            log.warn("execute function not found for command:", .{});
-            input.debugPrintCommandRecursive();
+        const exeFn = cmd.execute orelse
             return error.CommandNotFound;
-        };
-
         exeFn(input);
     }
 
@@ -137,7 +131,6 @@ pub const Command = struct {
                 }
             }
 
-            std.log.warn("flag not found: {s}", .{input_flag_name});
             return error.FlagNotFound;
         }
 
@@ -173,13 +166,6 @@ pub const InputCommand = struct {
     /// Recursively Iterate over flags for current command and next commands
     pub fn flagIterRec(self: *const InputCommand) InputFlagIteratorRecursive {
         return .{ .command = self, .flag = self.flag };
-    }
-
-    fn debugPrintCommandRecursive(self: *const InputCommand) void {
-        std.debug.print("{?s} ", .{self.name});
-        const next = self.next orelse return std.debug.print("\n", .{});
-        std.debug.print("-> ", .{});
-        next.debugPrintCommandRecursive();
     }
 };
 
